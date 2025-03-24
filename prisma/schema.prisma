@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String     @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  email           String     @unique
+  password        String
+  profileImage    String?
+  studentId       String?    @unique // Only for students
+  role            RoleEnum   @default(USER)
+  resetOTP        String?
+  otpExpiration   DateTime?
+  accessEndDate   DateTime   // When their free access expires
+  lastLoginDate   DateTime   @default(now())
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  enrollments     Enrollment[]
+  quizAttempts    QuizAttempt[]
+  certificates    Certificate[]
+  reviews         Review[]
+  providedCourses Course[]    @relation("ProvidedCourses") // Courses created by provider
+
+  @@map("users")
+}
+
+enum RoleEnum {
+  ADMIN
+  PROVIDER
+  USER // represents student
+}
+
+model MedicationGroup {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  subGroups   SubGroup[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("medication_groups")
+}
+
+model SubGroup {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  groupId     String          @db.ObjectId
+  group       MedicationGroup @relation(fields: [groupId], references: [id])
+  medicines   Medicine[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("sub_groups")
+}
+
+model Medicine {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  doses       String
+  subGroupId  String    @db.ObjectId
+  subGroup    SubGroup  @relation(fields: [subGroupId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("medicines")
+}
+
+model Course {
+  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  videoUrl        String?      // Made optional with String?
+  videoUploaded   Boolean      @default(false)  // Track if video is uploaded
+  resources       String[]     // Array of resource URLs
+  duration        Int?         // Made optional since video might not be uploaded yet
+  overview        String
+  learningPoints  String[]     // What you will learn
+  rating          Float        @default(0)
+  totalRatings    Int          @default(0)      // Track number of ratings
+  reviews         Review[]     // Relation to reviews
+  quiz            Quiz?
+  enrollments     Enrollment[]
+  certificates    Certificate[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  provider        User         @relation(name: "ProvidedCourses", fields: [providerId], references: [id])
+  providerId      String       @db.ObjectId
+
+  @@map("courses")
+}
+
+model Quiz {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  courseId    String        @unique @db.ObjectId  // One-to-one with Course
+  course      Course        @relation(fields: [courseId], references: [id])
+  questions   Question[]
+  attempts    QuizAttempt[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("quizzes")
+}
+
+model Question {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  quizId      String    @db.ObjectId
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  question    String
+  options     String[]
+  answer      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("questions")
+}
+
+model QuizAttempt {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  quizId      String    @db.ObjectId
+  quiz        Quiz      @relation(fields: [quizId], references: [id])
+  score       Int
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, quizId]) // Ensures one attempt per student per quiz
+  @@map("quiz_attempts")
+}
+
+model Enrollment {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String     @db.ObjectId
+  user         User       @relation(fields: [userId], references: [id])
+  courseId     String     @db.ObjectId
+  course       Course     @relation(fields: [courseId], references: [id])
+  enrolledAt   DateTime   @default(now())
+  completed    Boolean    @default(false)
+  completedAt  DateTime?
+
+  @@map("enrollments")
+}
+
+model Certificate {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String    @db.ObjectId
+  user         User      @relation(fields: [userId], references: [id])
+  courseId     String    @db.ObjectId
+  course       Course    @relation(fields: [courseId], references: [id])
+  issuedAt     DateTime  @default(now())
+
+  @@map("certificates")
+}
+
+model Review {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  rating      Float     // Individual rating (1-5)
+  comment     String
+  courseId    String    @db.ObjectId
+  course      Course    @relation(fields: [courseId], references: [id])
+  userId      String    @db.ObjectId
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, courseId]) // One review per user per course
+  @@map("reviews")
+}

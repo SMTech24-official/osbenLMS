@@ -2,12 +2,22 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const bcrypt = require('bcrypt');
 const { generateToken } = require('../../utils/jwt.utils');
-const { AppError } = require('../../errors/AppError');
+
 const { addDays, addMonths } = require('date-fns');
 const generateOTP = require('../../utils/generateOTP');
+const AppError = require('../../errors/AppError');
 
 const createUser = async (userData) => {
-  const { password, role, ...others } = userData;
+  const { email, password, role, ...others } = userData;
+
+  // Check if email already exists
+  const existingUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existingUser) {
+    throw new AppError('Email already exists', 400);
+  }
 
   // Hash password
   const hashedPassword = await bcrypt.hash(password, 12);
@@ -17,27 +27,38 @@ const createUser = async (userData) => {
     ? addDays(new Date(), 3)  // 3 days for providers
     : addMonths(new Date(), 3);  // 3 months for students
 
-  const result = await prisma.user.create({
-    data: {
-      ...others,
-      password: hashedPassword,
-      role,
-      accessEndDate,
-      lastLoginDate: new Date(),
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      profileImage: true,
-      studentId: true,
-      createdAt: true,
-      accessEndDate: true,
-    },
-  });
+  try {
+    const result = await prisma.user.create({
+      data: {
+        ...others,
+        email,
+        password: hashedPassword,
+        role,
+        accessEndDate,
+        lastLoginDate: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        profileImage: true,
+        studentId: true,
+        accessEndDate: true,
+        createdAt: true,
+      },
+    });
 
-  return result;
+    return result;
+  } catch (error) {
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('studentId')) {
+        throw new AppError('Student ID already exists', 400);
+      }
+      throw new AppError('Email already exists', 400);
+    }
+    throw error;
+  }
 };
 
 const loginUser = async ({ email, password }) => {
@@ -83,29 +104,70 @@ const loginUser = async ({ email, password }) => {
 };
 
 const updateUser = async (id, updateData) => {
-  const { password, ...others } = updateData;
+  const { email, password, studentId, ...others } = updateData;
 
+  // If updating email, check if it already exists
+  if (email) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email,
+        NOT: { id },
+      },
+    });
+
+    if (existingUser) {
+      throw new AppError('Email already exists', 400);
+    }
+  }
+
+  // If updating studentId, check if it already exists
+  if (studentId) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        studentId,
+        NOT: { id },
+      },
+    });
+
+    if (existingUser) {
+      throw new AppError('Student ID already exists', 400);
+    }
+  }
+
+  // If updating password, hash it
   const updatePayload = { ...others };
+  if (email) updatePayload.email = email;
+  if (studentId) updatePayload.studentId = studentId;
   if (password) {
     updatePayload.password = await bcrypt.hash(password, 12);
   }
 
-  const result = await prisma.user.update({
-    where: { id },
-    data: updatePayload,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      profileImage: true,
-      studentId: true,
-      accessEndDate: true,
-      updatedAt: true,
-    },
-  });
+  try {
+    const result = await prisma.user.update({
+      where: { id },
+      data: updatePayload,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        profileImage: true,
+        studentId: true,
+        accessEndDate: true,
+        updatedAt: true,
+      },
+    });
 
-  return result;
+    return result;
+  } catch (error) {
+    if (error.code === 'P2002') {
+      if (error.meta?.target?.includes('studentId')) {
+        throw new AppError('Student ID already exists', 400);
+      }
+      throw new AppError('Email already exists', 400);
+    }
+    throw error;
+  }
 };
 
 const deleteUser = async (id) => {

@@ -2,6 +2,15 @@ const prisma = require('../../utils/prisma');
 const { AppError } = require('../../errors/AppError');
 
 const createCourse = async (data, providerId) => {
+  // Verify subgroup exists
+  const subGroup = await prisma.courseSubGroup.findUnique({
+    where: { id: data.subGroupId },
+  });
+
+  if (!subGroup) {
+    throw new AppError('Course sub group not found', 404);
+  }
+
   const course = await prisma.course.create({
     data: {
       ...data,
@@ -13,6 +22,11 @@ const createCourse = async (data, providerId) => {
           id: true,
           name: true,
           email: true,
+        },
+      },
+      subGroup: {
+        include: {
+          group: true,
         },
       },
     },
@@ -36,31 +50,50 @@ const getAllCourses = async (
   limit = 10,
   sortBy = 'createdAt',
   sortOrder = 'desc',
-  searchTerm = ''
+  searchTerm = '',
+  groupId = '',
+  subGroupId = ''
 ) => {
   const skip = (Number(page) - 1) * Number(limit);
 
-  const searchCondition = searchTerm
-    ? {
-        OR: [
-          { name: { contains: searchTerm, mode: 'insensitive' } },
-          { overview: { contains: searchTerm, mode: 'insensitive' } },
-        ],
-      }
-    : {};
+  const whereCondition = {
+    AND: [
+      searchTerm
+        ? {
+            OR: [
+              { name: { contains: searchTerm, mode: 'insensitive' } },
+              { overview: { contains: searchTerm, mode: 'insensitive' } },
+            ],
+          }
+        : {},
+      subGroupId ? { subGroupId } : {},
+      groupId
+        ? {
+            subGroup: {
+              groupId,
+            },
+          }
+        : {},
+    ],
+  };
 
   const total = await prisma.course.count({
-    where: searchCondition,
+    where: whereCondition,
   });
 
   const courses = await prisma.course.findMany({
-    where: searchCondition,
+    where: whereCondition,
     include: {
       provider: {
         select: {
           id: true,
           name: true,
           email: true,
+        },
+      },
+      subGroup: {
+        include: {
+          group: true,
         },
       },
       reviews: {
@@ -106,6 +139,11 @@ const getCourseById = async (id) => {
           id: true,
           name: true,
           email: true,
+        },
+      },
+      subGroup: {
+        include: {
+          group: true,
         },
       },
       reviews: {

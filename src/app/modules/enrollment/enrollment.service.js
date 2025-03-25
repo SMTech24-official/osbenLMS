@@ -35,6 +35,11 @@ const enrollInCourse = async (userId, courseId) => {
           name: true,
           videoUrl: true,
           overview: true,
+          subGroup: {
+            include: {
+              group: true,
+            },
+          },
           provider: {
             select: {
               id: true,
@@ -81,13 +86,32 @@ const completeEnrollment = async (userId, courseId) => {
   return enrollment;
 };
 
-const getEnrollments = async (userId, page = 1, limit = 10, status) => {
+const getEnrollments = async (
+  userId, 
+  page = 1, 
+  limit = 10, 
+  status,
+  groupId,
+  subGroupId
+) => {
   const skip = (Number(page) - 1) * Number(limit);
 
   const whereCondition = {
     userId,
     ...(status === 'completed' ? { completed: true } : 
         status === 'ongoing' ? { completed: false } : {}),
+    ...(groupId ? {
+      course: {
+        subGroup: {
+          groupId
+        }
+      }
+    } : {}),
+    ...(subGroupId ? {
+      course: {
+        subGroupId
+      }
+    } : {})
   };
 
   const total = await prisma.enrollment.count({
@@ -103,6 +127,11 @@ const getEnrollments = async (userId, page = 1, limit = 10, status) => {
           name: true,
           videoUrl: true,
           overview: true,
+          subGroup: {
+            include: {
+              group: true,
+            },
+          },
           provider: {
             select: {
               id: true,
@@ -130,13 +159,32 @@ const getEnrollments = async (userId, page = 1, limit = 10, status) => {
   };
 };
 
-const getCourseEnrollments = async (courseId, page = 1, limit = 10, status) => {
+const getCourseEnrollments = async (
+  courseId, 
+  page = 1, 
+  limit = 10, 
+  status,
+  groupId,
+  subGroupId
+) => {
   const skip = (Number(page) - 1) * Number(limit);
 
   const whereCondition = {
     courseId,
     ...(status === 'completed' ? { completed: true } : 
         status === 'ongoing' ? { completed: false } : {}),
+    ...(groupId ? {
+      course: {
+        subGroup: {
+          groupId
+        }
+      }
+    } : {}),
+    ...(subGroupId ? {
+      course: {
+        subGroupId
+      }
+    } : {})
   };
 
   const total = await prisma.enrollment.count({
@@ -152,6 +200,17 @@ const getCourseEnrollments = async (courseId, page = 1, limit = 10, status) => {
           name: true,
           email: true,
           studentId: true,
+        },
+      },
+      course: {
+        select: {
+          id: true,
+          name: true,
+          subGroup: {
+            include: {
+              group: true,
+            },
+          },
         },
       },
     },
@@ -173,14 +232,35 @@ const getCourseEnrollments = async (courseId, page = 1, limit = 10, status) => {
   };
 };
 
-const getUserCertificates = async (userId) => {
+const getUserCertificates = async (userId, groupId, subGroupId) => {
+  const whereCondition = {
+    userId,
+    ...(groupId ? {
+      course: {
+        subGroup: {
+          groupId
+        }
+      }
+    } : {}),
+    ...(subGroupId ? {
+      course: {
+        subGroupId
+      }
+    } : {})
+  };
+
   const certificates = await prisma.certificate.findMany({
-    where: { userId },
+    where: whereCondition,
     include: {
       course: {
         select: {
           id: true,
           name: true,
+          subGroup: {
+            include: {
+              group: true,
+            },
+          },
           provider: {
             select: {
               id: true,

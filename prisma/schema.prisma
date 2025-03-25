@@ -76,25 +76,55 @@ model Medicine {
   @@map("medicines")
 }
 
+// Course Category Models
+model CourseGroup {
+  id          String            @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  subGroups   CourseSubGroup[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("course_groups")
+}
+
+model CourseSubGroup {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  groupId     String          @db.ObjectId
+  group       CourseGroup     @relation(fields: [groupId], references: [id])
+  courses     Course[]        // Relation to courses
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("course_sub_groups")
+}
+
 model Course {
   id              String        @id @default(auto()) @map("_id") @db.ObjectId
   name            String
-  videoUrl        String?      // Made optional with String?
-  videoUploaded   Boolean      @default(false)  // Track if video is uploaded
-  resources       String[]     // Array of resource URLs
-  duration        Int?         // Made optional since video might not be uploaded yet
+  videoUrl        String?      
+  videoUploaded   Boolean      @default(false)  
+  resources       String[]     
+  duration        Int?         
   overview        String
-  learningPoints  String[]     // What you will learn
+  learningPoints  String[]     
   rating          Float        @default(0)
-  totalRatings    Int          @default(0)      // Track number of ratings
-  reviews         Review[]     // Relation to reviews
+  totalRatings    Int          @default(0)      
+  reviews         Review[]     
   quiz            Quiz?
   enrollments     Enrollment[]
   certificates    Certificate[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  
+  // Provider relation
   provider        User         @relation(name: "ProvidedCourses", fields: [providerId], references: [id])
   providerId      String       @db.ObjectId
+
+  // Category relations
+  subGroup        CourseSubGroup  @relation(fields: [subGroupId], references: [id])
+  subGroupId      String          @db.ObjectId
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   @@map("courses")
 }

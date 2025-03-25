@@ -11,6 +11,11 @@ router.get('/:id', courseController.getCourseById);
 
 // Protected routes
 router.use(auth('ADMIN', 'PROVIDER'));
+
+// Course group specific routes
+router.get('/by-group/:groupId', courseController.getAllCourses);
+router.get('/by-subgroup/:subGroupId', courseController.getAllCourses);
+
 router.post('/', courseController.createCourse);
 router.post(
   '/:courseId/video',

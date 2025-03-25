@@ -40,13 +40,15 @@ const uploadCourseVideo = catchAsync(async (req, res) => {
 });
 
 const getAllCourses = catchAsync(async (req, res) => {
-  const { page, limit, sortBy, sortOrder, searchTerm } = req.query;
+  const { page, limit, sortBy, sortOrder, searchTerm, groupId, subGroupId } = req.query;
   const result = await courseService.getAllCourses(
     page,
     limit,
     sortBy,
     sortOrder,
-    searchTerm
+    searchTerm,
+    groupId,
+    subGroupId
   );
   
   sendResponse(res, {

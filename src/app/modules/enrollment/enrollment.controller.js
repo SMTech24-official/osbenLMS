@@ -27,12 +27,14 @@ const completeEnrollment = catchAsync(async (req, res) => {
 });
 
 const getMyEnrollments = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, status } = req.query;
+  const { page = 1, limit = 10, status, groupId, subGroupId } = req.query;
   const result = await enrollmentService.getEnrollments(
     req.user.id,
     page,
     limit,
-    status
+    status,
+    groupId,
+    subGroupId
   );
   
   sendResponse(res, {
@@ -46,12 +48,14 @@ const getMyEnrollments = catchAsync(async (req, res) => {
 
 const getCourseEnrollments = catchAsync(async (req, res) => {
   const { courseId } = req.params;
-  const { page = 1, limit = 10, status } = req.query;
+  const { page = 1, limit = 10, status, groupId, subGroupId } = req.query;
   const result = await enrollmentService.getCourseEnrollments(
     courseId,
     page,
     limit,
-    status
+    status,
+    groupId,
+    subGroupId
   );
   
   sendResponse(res, {
@@ -64,7 +68,12 @@ const getCourseEnrollments = catchAsync(async (req, res) => {
 });
 
 const getMyCertificates = catchAsync(async (req, res) => {
-  const result = await enrollmentService.getUserCertificates(req.user.id);
+  const { groupId, subGroupId } = req.query;
+  const result = await enrollmentService.getUserCertificates(
+    req.user.id,
+    groupId,
+    subGroupId
+  );
   
   sendResponse(res, {
     statusCode: 200,

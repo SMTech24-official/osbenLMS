@@ -1,75 +1,120 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../utils/prisma');
 const bcrypt = require('bcrypt');
-const { generateToken } = require('../../utils/jwt.utils');
-
-const { addDays, addMonths } = require('date-fns');
-const generateOTP = require('../../utils/generateOTP');
 const AppError = require('../../errors/AppError');
+const { generateToken } = require('../../utils/jwt.utils');
+const { addDays, addMonths, addYears } = require('date-fns');
+const generateOTP = require('../../utils/generateOTP');
 
-const createUser = async (userData) => {
-  const { email, password, role, ...others } = userData;
-
-  // Check if email already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (existingUser) {
-    throw new AppError('Email already exists', 400);
-  }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 12);
-
-  // Calculate access end date based on role
-  const accessEndDate = role === 'PROVIDER' 
-    ? addDays(new Date(), 3)  // 3 days for providers
-    : addMonths(new Date(), 3);  // 3 months for students
-
+const createUser = async (data) => {
   try {
+    const { email, password, role, profileImage, name } = data;
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new AppError('Email already exists', 400);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Calculate access end date based on role
+    let accessEndDate;
+    switch (role) {
+      case 'PROVIDER':
+        accessEndDate = addDays(new Date(), 3);
+        break;
+      case 'USER':
+        accessEndDate = addMonths(new Date(), 3);
+        break;
+      case 'ADMIN':
+        accessEndDate = addYears(new Date(), 100);
+        break;
+      default:
+        throw new AppError('Invalid role', 400);
+    }
+
+    // Create user data object
+    const createData = {
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      accessEndDate,
+      lastLoginDate: new Date(),
+    };
+
+    // Add optional fields if they exist
+    if (profileImage) {
+      createData.profileImage = profileImage;
+    }
+
     const result = await prisma.user.create({
-      data: {
-        ...others,
-        email,
-        password: hashedPassword,
-        role,
-        accessEndDate,
-        lastLoginDate: new Date(),
-      },
+      data: createData,
       select: {
         id: true,
         name: true,
         email: true,
         role: true,
         profileImage: true,
-        studentId: true,
         accessEndDate: true,
         createdAt: true,
       },
     });
 
     return result;
-  } catch (error) {
-    if (error.code === 'P2002') {
-      if (error.meta?.target?.includes('studentId')) {
-        throw new AppError('Student ID already exists', 400);
+
+  } catch (err) {
+    // Handle Prisma unique constraint violations
+    if (err.code === 'P2002') {
+      const target = err.meta?.target?.[0];
+      switch (target) {
+        case 'email':
+          throw new AppError(
+            'This email is already registered. Please use a different email or try logging in.',
+            400
+          );
+        case 'studentId':
+          throw new AppError(
+            'This Student ID is already registered. Please use a different Student ID.',
+            400
+          );
+        default:
+          throw new AppError(
+            'A user with these details already exists.',
+            400
+          );
       }
-      throw new AppError('Email already exists', 400);
     }
-    throw error;
+
+    // Handle validation errors
+    if (err instanceof AppError) {
+      throw err;
+    }
+
+    // Handle unexpected errors
+    console.error('User creation error:', err);
+    throw new AppError(
+      'An error occurred while creating the user. Please try again later.',
+      500
+    );
   }
 };
 
 const loginUser = async ({ email, password }) => {
+  // Find user by email
   const user = await prisma.user.findUnique({
     where: { email },
   });
 
   if (!user) {
-    throw new AppError('User not found', 404);
+    throw new AppError('Invalid credentials', 401);
   }
 
+  // Check password
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     throw new AppError('Invalid credentials', 401);
@@ -86,6 +131,7 @@ const loginUser = async ({ email, password }) => {
     data: { lastLoginDate: new Date() },
   });
 
+  // Generate token
   const token = generateToken({
     id: user.id,
     role: user.role,
@@ -98,6 +144,8 @@ const loginUser = async ({ email, password }) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      profileImage: user.profileImage,
+      studentId: user.studentId,
       accessEndDate: user.accessEndDate,
     },
   };

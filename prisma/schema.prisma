@@ -19,7 +19,6 @@ model User {
   email           String     @unique
   password        String
   profileImage    String?
-  studentId       String?    @unique // Only for students
   role            RoleEnum   @default(USER)
   resetOTP        String?
   otpExpiration   DateTime?

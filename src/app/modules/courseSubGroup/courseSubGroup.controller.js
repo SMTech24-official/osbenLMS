@@ -1,5 +1,5 @@
 const catchAsync = require('../../utils/catchAsync');
-const { sendResponse } = require('../../utils/sendResponse');
+const  sendResponse  = require('../../utils/sendResponse');
 const courseSubGroupService = require('./courseSubGroup.service');
 
 const createCourseSubGroup = catchAsync(async (req, res) => {

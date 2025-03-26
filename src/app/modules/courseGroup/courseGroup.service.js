@@ -1,9 +1,27 @@
 const prisma = require('../../utils/prisma');
-const { AppError } = require('../../errors/AppError');
+const  AppError  = require('../../errors/AppError');
 
 const createCourseGroup = async (data) => {
+  // Check if group already exists with findFirst instead of findUnique
+  const existingGroup = await prisma.courseGroup.findFirst({
+    where: { 
+      name: data.name 
+    },
+  });
+
+  if (existingGroup) {
+    throw new AppError('Course group with this name already exists', 400);
+  }
+
   const result = await prisma.courseGroup.create({
     data,
+    include: {
+      subGroups: {
+        include: {
+          subSubGroups: true
+        }
+      }
+    },
   });
   return result;
 };
@@ -35,11 +53,20 @@ const getAllCourseGroups = async (
     include: {
       subGroups: {
         include: {
-          _count: {
-            select: {
-              courses: true,
+          subSubGroups: {
+            include: {
+              _count: {
+                select: {
+                  courses: true,
+                },
+              },
             },
           },
+        },
+      },
+      _count: {
+        select: {
+          subGroups: true,
         },
       },
     },
@@ -67,7 +94,20 @@ const getCourseGroupById = async (id) => {
     include: {
       subGroups: {
         include: {
-          courses: true,
+          subSubGroups: {
+            include: {
+              courses: {
+                include: {
+                  provider: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       },
     },

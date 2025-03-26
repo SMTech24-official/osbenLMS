@@ -22,8 +22,10 @@ model User {
   role            RoleEnum   @default(USER)
   resetOTP        String?
   otpExpiration   DateTime?
-  accessEndDate   DateTime   // When their free access expires
+  accessEndDate   DateTime?  // Make it optional since it depends on subscription
   lastLoginDate   DateTime   @default(now())
+  stripeCustomerId String?   // Add Stripe customer ID
+  subscriptionId   String?   // Add Stripe subscription ID
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
   enrollments     Enrollment[]
@@ -88,43 +90,56 @@ model CourseGroup {
 }
 
 model CourseSubGroup {
-  id          String          @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  groupId     String          @db.ObjectId
-  group       CourseGroup     @relation(fields: [groupId], references: [id])
-  courses     Course[]        // Relation to courses
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id            String              @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  groupId       String              @db.ObjectId
+  group         CourseGroup         @relation(fields: [groupId], references: [id])
+  subSubGroups  CourseSubSubGroup[] // New relation to sub-sub-groups
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@map("course_sub_groups")
 }
 
+// New model for sub-sub-groups
+model CourseSubSubGroup {
+  id          String          @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  subGroupId  String          @db.ObjectId
+  subGroup    CourseSubGroup  @relation(fields: [subGroupId], references: [id])
+  courses     Course[]        // Courses now belong to sub-sub-groups
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("course_sub_sub_groups")
+}
+
 model Course {
-  id              String        @id @default(auto()) @map("_id") @db.ObjectId
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
   name            String
   videoUrl        String?      
-  videoUploaded   Boolean      @default(false)  
+  videoUploaded   Boolean          @default(false)  
   resources       String[]     
   duration        Int?         
   overview        String
   learningPoints  String[]     
-  rating          Float        @default(0)
-  totalRatings    Int          @default(0)      
+  rating          Float            @default(0)
+  totalRatings    Int              @default(0)      
   reviews         Review[]     
   quiz            Quiz?
   enrollments     Enrollment[]
   certificates    Certificate[]
   
   // Provider relation
-  provider        User         @relation(name: "ProvidedCourses", fields: [providerId], references: [id])
-  providerId      String       @db.ObjectId
+  provider        User             @relation(name: "ProvidedCourses", fields: [providerId], references: [id])
+  providerId      String           @db.ObjectId
 
-  // Category relations
-  subGroup        CourseSubGroup  @relation(fields: [subGroupId], references: [id])
-  subGroupId      String          @db.ObjectId
+  // Updated Category relation
+  subSubGroup     CourseSubSubGroup @relation(fields: [subSubGroupId], references: [id])
+  subSubGroupId   String           @db.ObjectId
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@map("courses")
 }

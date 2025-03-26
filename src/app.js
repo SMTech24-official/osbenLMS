@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 const routes = require('./app/routes');
 const globalErrorHandler = require('./app/middlewares/globalErrorHandler');
-const { scheduleUserCleanup } = require('./app/utils/cronJobs');
+const { scheduleUserCleanup, scheduleSubscriptionChecks } = require('./app/utils/cronJobs');
 
 const app = express();
 
@@ -46,5 +46,6 @@ app.use(globalErrorHandler);
 
 // Initialize cron jobs
 scheduleUserCleanup();
+scheduleSubscriptionChecks();
 
 module.exports = app;

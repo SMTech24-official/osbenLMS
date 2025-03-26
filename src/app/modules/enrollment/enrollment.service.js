@@ -2,72 +2,135 @@ const prisma = require('../../utils/prisma');
 const { AppError } = require('../../errors/AppError');
 
 const enrollInCourse = async (userId, courseId) => {
-  // Check if already enrolled
-  const existingEnrollment = await prisma.enrollment.findFirst({
-    where: {
-      userId,
-      courseId,
-    },
-  });
-
-  if (existingEnrollment) {
-    throw new AppError('Already enrolled in this course', 400);
-  }
-
-  // Check if user has valid access
+  // First check if user has valid access
   const user = await prisma.user.findUnique({
     where: { id: userId },
+    select: {
+      id: true,
+      accessEndDate: true,
+      role: true,
+      enrollments: {
+        where: { courseId }
+      }
+    }
   });
 
-  if (new Date() > user.accessEndDate) {
-    throw new AppError('Your access period has expired', 403);
+  if (!user) {
+    throw new AppError('User not found', 404);
   }
 
+  // Check if user has valid subscription access
+  if (!user.accessEndDate || new Date() > user.accessEndDate) {
+    throw new AppError('Please subscribe to access and enroll in courses', 403);
+  }
+
+  // Check if already enrolled
+  if (user.enrollments.length > 0) {
+    throw new AppError('You are already enrolled in this course', 400);
+  }
+
+  // Check if course exists
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: {
+      id: true,
+      name: true,
+      providerId: true
+    }
+  });
+
+  if (!course) {
+    throw new AppError('Course not found', 404);
+  }
+
+  // Prevent provider from enrolling in their own course
+  if (user.role === 'PROVIDER' && course.providerId === userId) {
+    throw new AppError('You cannot enroll in your own course', 400);
+  }
+
+  // Create enrollment
   const enrollment = await prisma.enrollment.create({
     data: {
       userId,
       courseId,
+      enrolledAt: new Date(),
+      completed: false
     },
     include: {
       course: {
         select: {
-          id: true,
           name: true,
-          videoUrl: true,
-          overview: true,
-          subGroup: {
-            include: {
-              group: true,
-            },
-          },
           provider: {
             select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
+              name: true
+            }
+          }
+        }
+      }
+    }
   });
 
   return enrollment;
 };
 
 const completeEnrollment = async (userId, courseId) => {
-  const enrollment = await prisma.enrollment.update({
+  // Check if user has valid access
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      accessEndDate: true
+    }
+  });
+
+  if (!user.accessEndDate || new Date() > user.accessEndDate) {
+    throw new AppError('Please subscribe to complete courses', 403);
+  }
+
+  // Check if enrollment exists
+  const enrollment = await prisma.enrollment.findFirst({
     where: {
-      userId_courseId: {
+      userId,
+      courseId,
+    },
+    include: {
+      course: {
+        include: {
+          quiz: true
+        }
+      }
+    }
+  });
+
+  if (!enrollment) {
+    throw new AppError('Enrollment not found', 404);
+  }
+
+  if (enrollment.completed) {
+    throw new AppError('Course already completed', 400);
+  }
+
+  // If course has quiz, check if user has passed it
+  if (enrollment.course.quiz) {
+    const quizAttempt = await prisma.quizAttempt.findFirst({
+      where: {
         userId,
-        courseId,
+        quizId: enrollment.course.quiz.id,
       },
+    });
+
+    if (!quizAttempt) {
+      throw new AppError('Must complete the quiz before completing the course', 400);
+    }
+
+    // Assuming passing score is 60%
+    if (quizAttempt.score < 60) {
+      throw new AppError('Must pass the quiz before completing the course', 400);
+    }
+  }
+
+  const updatedEnrollment = await prisma.enrollment.update({
+    where: {
+      id: enrollment.id,
     },
     data: {
       completed: true,
@@ -83,33 +146,56 @@ const completeEnrollment = async (userId, courseId) => {
     },
   });
 
-  return enrollment;
+  return updatedEnrollment;
 };
 
 const getEnrollments = async (
-  userId, 
-  page = 1, 
-  limit = 10, 
+  userId,
+  page = 1,
+  limit = 10,
   status,
   groupId,
-  subGroupId
+  subGroupId,
+  subSubGroupId
 ) => {
+  // Check if user has valid access
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      accessEndDate: true,
+      role: true
+    }
+  });
+
+  if (!user.accessEndDate || new Date() > user.accessEndDate) {
+    throw new AppError('Please subscribe to access your enrollments', 403);
+  }
+
   const skip = (Number(page) - 1) * Number(limit);
 
   const whereCondition = {
     userId,
     ...(status === 'completed' ? { completed: true } : 
         status === 'ongoing' ? { completed: false } : {}),
-    ...(groupId ? {
+    ...(subSubGroupId ? {
       course: {
-        subGroup: {
-          groupId
-        }
+        subSubGroupId
       }
     } : {}),
     ...(subGroupId ? {
       course: {
-        subGroupId
+        subSubGroup: {
+          subGroupId
+        }
+      }
+    } : {}),
+    ...(groupId ? {
+      course: {
+        subSubGroup: {
+          subGroup: {
+            groupId
+          }
+        }
       }
     } : {})
   };
@@ -127,9 +213,13 @@ const getEnrollments = async (
           name: true,
           videoUrl: true,
           overview: true,
-          subGroup: {
+          subSubGroup: {
             include: {
-              group: true,
+              subGroup: {
+                include: {
+                  group: true,
+                },
+              },
             },
           },
           provider: {
@@ -138,6 +228,15 @@ const getEnrollments = async (
               name: true,
             },
           },
+          quiz: {
+            include: {
+              _count: {
+                select: {
+                  questions: true
+                }
+              }
+            }
+          }
         },
       },
     },
@@ -160,31 +259,30 @@ const getEnrollments = async (
 };
 
 const getCourseEnrollments = async (
-  courseId, 
-  page = 1, 
-  limit = 10, 
-  status,
-  groupId,
-  subGroupId
+  courseId,
+  page = 1,
+  limit = 10,
+  status
 ) => {
+  // Check if user has valid access
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      accessEndDate: true,
+      role: true
+    }
+  });
+
+  if (!user.accessEndDate || new Date() > user.accessEndDate) {
+    throw new AppError('Please subscribe to access course information', 403);
+  }
+
   const skip = (Number(page) - 1) * Number(limit);
 
   const whereCondition = {
     courseId,
     ...(status === 'completed' ? { completed: true } : 
-        status === 'ongoing' ? { completed: false } : {}),
-    ...(groupId ? {
-      course: {
-        subGroup: {
-          groupId
-        }
-      }
-    } : {}),
-    ...(subGroupId ? {
-      course: {
-        subGroupId
-      }
-    } : {})
+        status === 'ongoing' ? { completed: false } : {})
   };
 
   const total = await prisma.enrollment.count({
@@ -199,16 +297,19 @@ const getCourseEnrollments = async (
           id: true,
           name: true,
           email: true,
-          studentId: true,
         },
       },
       course: {
         select: {
           id: true,
           name: true,
-          subGroup: {
+          subSubGroup: {
             include: {
-              group: true,
+              subGroup: {
+                include: {
+                  group: true,
+                },
+              },
             },
           },
         },
@@ -232,19 +333,28 @@ const getCourseEnrollments = async (
   };
 };
 
-const getUserCertificates = async (userId, groupId, subGroupId) => {
+const getUserCertificates = async (userId, groupId, subGroupId, subSubGroupId) => {
   const whereCondition = {
     userId,
-    ...(groupId ? {
+    ...(subSubGroupId ? {
       course: {
-        subGroup: {
-          groupId
-        }
+        subSubGroupId
       }
     } : {}),
     ...(subGroupId ? {
       course: {
-        subGroupId
+        subSubGroup: {
+          subGroupId
+        }
+      }
+    } : {}),
+    ...(groupId ? {
+      course: {
+        subSubGroup: {
+          subGroup: {
+            groupId
+          }
+        }
       }
     } : {})
   };
@@ -256,9 +366,13 @@ const getUserCertificates = async (userId, groupId, subGroupId) => {
         select: {
           id: true,
           name: true,
-          subGroup: {
+          subSubGroup: {
             include: {
-              group: true,
+              subGroup: {
+                include: {
+                  group: true,
+                },
+              },
             },
           },
           provider: {

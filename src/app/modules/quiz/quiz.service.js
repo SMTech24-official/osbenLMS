@@ -1,5 +1,5 @@
 const prisma = require('../../utils/prisma');
-const { AppError } = require('../../errors/AppError');
+const AppError = require('../../errors/AppError');
 
 const createQuiz = async (courseId, questions) => {
   // Check if course exists

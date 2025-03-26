@@ -10,15 +10,16 @@ router.use(auth('USER'));
 router.post('/courses/:courseId/enroll', enrollmentController.enrollInCourse);
 router.patch('/courses/:courseId/complete', enrollmentController.completeEnrollment);
 
-// Get enrollments with optional group/subgroup filtering
+// Get enrollments with optional filtering
 router.get('/my-enrollments', enrollmentController.getMyEnrollments);
 router.get('/my-certificates', enrollmentController.getMyCertificates);
 
-// Group specific routes
+// Hierarchical filtering routes
 router.get('/my-enrollments/by-group/:groupId', enrollmentController.getMyEnrollments);
 router.get('/my-enrollments/by-subgroup/:subGroupId', enrollmentController.getMyEnrollments);
+router.get('/my-enrollments/by-sub-subgroup/:subSubGroupId', enrollmentController.getMyEnrollments);
 
-// Provider/Admin routes
+// Provider/Admin routes for viewing course enrollments
 router.get(
   '/courses/:courseId/enrollments',
   auth('ADMIN', 'PROVIDER'),

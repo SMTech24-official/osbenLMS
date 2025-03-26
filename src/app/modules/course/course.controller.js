@@ -1,8 +1,9 @@
 const catchAsync = require('../../utils/catchAsync');
-const { sendResponse } = require('../../utils/sendResponse');
+const  sendResponse = require('../../utils/sendResponse');
 const courseService = require('./course.service');
 const { fileUpload } = require('../../utils/FileUpload');
-const { AppError } = require('../../errors/AppError');
+const AppError = require('../../errors/AppError');
+
 
 const createCourse = catchAsync(async (req, res) => {
   const result = await courseService.createCourse(req.body, req.user.id);
@@ -15,26 +16,97 @@ const createCourse = catchAsync(async (req, res) => {
 });
 
 const uploadCourseVideo = catchAsync(async (req, res) => {
-  if (!req.file) {
-    throw new AppError('No video file provided', 400);
+  const { courseId } = req.params;
+  const { videoUrl } = req.body;
+
+  if (!videoUrl) {
+    throw new AppError('Video URL is required', 400);
   }
 
-  const { courseId } = req.params;
-  
   // Check if course exists and belongs to the provider
   const course = await courseService.getCourseById(courseId);
   
-  if (course.providerId !== req.user.id) {
-    throw new AppError('You are not authorized to upload video for this course', 403);
+  if (course.providerId !== req.user.id && req.user.role !== 'ADMIN') {
+    throw new AppError('You are not authorized to modify this course', 403);
   }
 
-  const videoUrl = await fileUpload.uploadFile(req.file);
   const result = await courseService.uploadCourseVideo(courseId, videoUrl);
   
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: 'Course video uploaded successfully',
+    data: result,
+  });
+});
+
+const removeCourseVideo = catchAsync(async (req, res) => {
+  const { courseId } = req.params;
+
+  // Check if course exists and belongs to the provider
+  const course = await courseService.getCourseById(courseId);
+  
+  if (course.providerId !== req.user.id && req.user.role !== 'ADMIN') {
+    throw new AppError('You are not authorized to modify this course', 403);
+  }
+
+  const result = await courseService.removeCourseVideo(courseId);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Course video removed successfully',
+    data: result,
+  });
+});
+
+const uploadCourseResources = catchAsync(async (req, res) => {
+  const { courseId } = req.params;
+  const { resourceUrl } = req.body;
+
+  // Validate resourceUrl
+  if (!resourceUrl) {
+    throw new AppError('Resource URL is required', 400);
+  }
+
+  // Check if course exists and belongs to the provider
+  const course = await courseService.getCourseById(courseId);
+  
+  if (course.providerId !== req.user.id && req.user.role !== 'ADMIN') {
+    throw new AppError('You are not authorized to modify this course', 403);
+  }
+
+  const result = await courseService.uploadCourseResources(courseId, resourceUrl);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Course resource added successfully',
+    data: result,
+  });
+});
+
+const removeCourseResource = catchAsync(async (req, res) => {
+  const { courseId } = req.params;
+  const { resourceUrl } = req.body;
+
+  if (!resourceUrl) {
+    throw new AppError('Resource URL is required', 400);
+  }
+
+  // Check if course exists and belongs to the provider
+  const course = await courseService.getCourseById(courseId);
+  
+  if (course.providerId !== req.user.id && req.user.role !== 'ADMIN') {
+    throw new AppError('You are not authorized to modify this course', 403);
+  }
+
+  const result = await courseService.removeCourseResource(courseId, resourceUrl);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Course resource removed successfully',
     data: result,
   });
 });
@@ -93,6 +165,9 @@ const deleteCourse = catchAsync(async (req, res) => {
 module.exports = {
   createCourse,
   uploadCourseVideo,
+  removeCourseVideo,
+  uploadCourseResources,
+  removeCourseResource,
   getAllCourses,
   getCourseById,
   updateCourse,

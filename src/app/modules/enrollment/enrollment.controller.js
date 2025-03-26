@@ -3,14 +3,16 @@ const { sendResponse } = require('../../utils/sendResponse');
 const enrollmentService = require('./enrollment.service');
 
 const enrollInCourse = catchAsync(async (req, res) => {
-  const { courseId } = req.params;
-  const result = await enrollmentService.enrollInCourse(req.user.id, courseId);
-  
+  const userId = req.user.id;
+  const { courseId } = req.body;
+
+  const result = await enrollmentService.enrollInCourse(userId, courseId);
+
   sendResponse(res, {
-    statusCode: 201,
+    statusCode: 200,
     success: true,
     message: 'Successfully enrolled in the course',
-    data: result,
+    data: result
   });
 });
 
@@ -27,14 +29,23 @@ const completeEnrollment = catchAsync(async (req, res) => {
 });
 
 const getMyEnrollments = catchAsync(async (req, res) => {
-  const { page = 1, limit = 10, status, groupId, subGroupId } = req.query;
+  const { 
+    page = 1, 
+    limit = 10, 
+    status, 
+    groupId, 
+    subGroupId,
+    subSubGroupId 
+  } = req.query;
+  
   const result = await enrollmentService.getEnrollments(
     req.user.id,
     page,
     limit,
     status,
     groupId,
-    subGroupId
+    subGroupId,
+    subSubGroupId
   );
   
   sendResponse(res, {
@@ -48,14 +59,13 @@ const getMyEnrollments = catchAsync(async (req, res) => {
 
 const getCourseEnrollments = catchAsync(async (req, res) => {
   const { courseId } = req.params;
-  const { page = 1, limit = 10, status, groupId, subGroupId } = req.query;
+  const { page = 1, limit = 10, status } = req.query;
+  
   const result = await enrollmentService.getCourseEnrollments(
     courseId,
     page,
     limit,
-    status,
-    groupId,
-    subGroupId
+    status
   );
   
   sendResponse(res, {
@@ -68,11 +78,12 @@ const getCourseEnrollments = catchAsync(async (req, res) => {
 });
 
 const getMyCertificates = catchAsync(async (req, res) => {
-  const { groupId, subGroupId } = req.query;
+  const { groupId, subGroupId, subSubGroupId } = req.query;
   const result = await enrollmentService.getUserCertificates(
     req.user.id,
     groupId,
-    subGroupId
+    subGroupId,
+    subSubGroupId
   );
   
   sendResponse(res, {

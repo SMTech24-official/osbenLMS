@@ -17,11 +17,27 @@ router.get('/by-group/:groupId', courseController.getAllCourses);
 router.get('/by-subgroup/:subGroupId', courseController.getAllCourses);
 
 router.post('/', courseController.createCourse);
+// router.post(
+//   '/:courseId/video',
+//   upload.single('video'),
+//   handleMulterError,
+//   courseController.uploadCourseVideo
+// );
 router.post(
   '/:courseId/video',
-  upload.single('video'),
-  handleMulterError,
   courseController.uploadCourseVideo
+);
+router.delete(
+  '/:courseId/video',
+  courseController.removeCourseVideo
+);
+router.post(
+  '/:courseId/resources',
+  courseController.uploadCourseResources
+);
+router.delete(
+  '/:courseId/resources',
+  courseController.removeCourseResource
 );
 router.patch('/:id', courseController.updateCourse);
 router.delete('/:id', courseController.deleteCourse);

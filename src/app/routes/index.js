@@ -6,6 +6,8 @@ const quizRoutes = require('../modules/quiz/quiz.routes');
 const enrollmentRoutes = require('../modules/enrollment/enrollment.routes');
 const courseGroupRoutes = require('../modules/courseGroup/courseGroup.routes');
 const courseSubGroupRoutes = require('../modules/courseSubGroup/courseSubGroup.routes');
+const courseSubSubGroupRoutes = require('../modules/courseSubSubGroup/courseSubSubGroup.routes');
+const subscriptionRoutes = require('../modules/subscription/subscription.routes');
 
 const modulesRoutes = [
     {
@@ -31,6 +33,14 @@ const modulesRoutes = [
     {
         path: '/course-sub-groups',
         route: courseSubGroupRoutes
+    },
+    {
+        path: '/course-sub-sub-groups',
+        route: courseSubSubGroupRoutes
+    },
+    {
+        path: '/subscriptions',
+        route: subscriptionRoutes
     }
 ];
 

@@ -1,7 +1,8 @@
 const { verifyToken } = require('../utils/jwt.utils');
-const { AppError } = require('../errors/AppError');
+
 const prisma = require('../utils/prisma');
 const catchAsync = require('../utils/catchAsync');
+const AppError = require('../errors/AppError');
 
 const auth = (...requiredRoles) => {
   return catchAsync(async (req, res, next) => {

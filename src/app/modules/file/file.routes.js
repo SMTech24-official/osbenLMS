@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const fileController = require('./file.controller');
-// const auth = require('../../middlewares/auth');
 const multer = require('multer');
 // const AppError = require('../../errors/AppError');
 
-// Configure multer with increased file size limit (100MB)
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
+    fileSize: 500 * 1024 * 1024 // 500MB limit
   },
   // Custom error handling for multer errors
   fileFilter: (req, file, cb) => {
@@ -49,34 +49,21 @@ const handleMulterErrors = (err, req, res, next) => {
   next(err);
 };
 
+
+
 // File upload routes
 router.post(
-  '/upload',
-//   auth('USER', 'ADMIN'),
+  '/file',
   upload.single('file'),
   handleMulterErrors,
   fileController.uploadFile
 );
 
-router.post(
-  '/upload-with-qr',
-//   auth('USER', 'ADMIN'),
-  upload.single('file'),
-  handleMulterErrors,
-  fileController.uploadFileWithQR
-);
-
 // File deletion routes
 router.delete(
   '/delete',
-//   auth('ADMIN'),
   fileController.deleteFile
 );
 
-router.delete(
-  '/delete-multiple',
-//   auth('ADMIN'),
-  fileController.deleteMultipleFiles
-);
 
 module.exports = router; 

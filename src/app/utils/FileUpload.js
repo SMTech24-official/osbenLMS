@@ -3,7 +3,6 @@ const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const AppError = require('../errors/AppError');
 const config = require('../../config');
-const multer = require('multer');
 
 // Initialize S3 client for DigitalOcean Spaces
 const s3Client = new S3Client({
@@ -16,22 +15,6 @@ const s3Client = new S3Client({
   }
 });
 
-// Configure multer for memory storage
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    // Accept video files
-    if (file.mimetype.startsWith('video/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only video files are allowed!'), false);
-    }
-  },
-});
 
 /**
  * NODE_ENV=development
@@ -174,108 +157,8 @@ class FileUpload {
     }
   }
 
-  /**
-   * Generate QR code for a file URL and upload it
-   * @param {String} fileUrl - URL of the uploaded file
-   * @returns {Promise<String>} - Returns QR code image URL
-   */
-  async generateAndUploadQRCode(fileUrl) {
-    try {
-      console.log("Generating QR code for URL:", fileUrl);
-      
-      // Generate QR code as buffer
-      const qrBuffer = await QRCode.toBuffer(fileUrl, {
-        errorCorrectionLevel: 'H',
-        type: 'png',
-        margin: 1,
-        width: 300
-      });
-
-      // Generate unique filename
-      const fileName = `qrcodes/${uuidv4()}.png`;
-
-      // Define upload parameters
-      const uploadParams = {
-        Bucket: config.digitalOcean.bucket,
-        Key: fileName,
-        Body: qrBuffer,
-        ContentType: 'image/png',
-        ACL: 'public-read',
-      };
-
-      try {
-        // Upload QR code
-        const command = new PutObjectCommand(uploadParams);
-        await s3Client.send(command);
-
-        // Generate and return public URL
-        const qrCodeUrl = `${config.digitalOcean.endpoint}/${config.digitalOcean.bucket}/${fileName}`;
-        console.log("✅ QR code generated and uploaded:", qrCodeUrl);
-        
-        return qrCodeUrl;
-      } catch (uploadError) {
-        // Handle S3 specific errors
-        const errorDetails = formatErrorDetails(uploadError);
-        
-        console.error("❌ QR Code Upload Error:", errorDetails);
-        
-        throw new AppError(
-          `QR code upload failed: ${errorDetails.explanation || errorDetails.message}`,
-          errorDetails.statusCode
-        );
-      }
-    } catch (error) {
-      // Handle general errors
-      if (error instanceof AppError) {
-        throw error;
-      }
-      
-      const errorDetails = formatErrorDetails(error);
-      console.error("❌ QR code generation error:", errorDetails);
-      
-      throw new AppError(
-        `QR code generation failed: ${errorDetails.explanation || errorDetails.message}`,
-        errorDetails.statusCode
-      );
-    }
-  }
-
-  /**
-   * Upload file and generate QR code
-   * @param {Object} file - File object from multer
-   * @returns {Promise<Object>} - Returns both file URL and QR code URL
-   */
-  async uploadFileWithQR(file) {
-    try {
-      console.log("Starting file upload with QR code generation");
-      
-      // Upload original file
-      const fileUrl = await this.uploadFile(file);
-      
-      // Generate and upload QR code
-      const qrCodeUrl = await this.generateAndUploadQRCode(fileUrl);
-
-      console.log("✅ File upload with QR code completed successfully");
-      
-      return {
-        fileUrl,
-        qrCodeUrl
-      };
-    } catch (error) {
-      // Pass through AppErrors
-      if (error instanceof AppError) {
-        throw error;
-      }
-      
-      const errorDetails = formatErrorDetails(error);
-      console.error("❌ File upload with QR failed:", errorDetails);
-      
-      throw new AppError(
-        `File upload with QR failed: ${errorDetails.explanation || errorDetails.message}`,
-        errorDetails.statusCode
-      );
-    }
-  }
+ 
+ 
 
   /**
    * Delete a file from space
@@ -335,53 +218,6 @@ class FileUpload {
     }
   }
 
-  /**
-   * Delete multiple files from space
-   * @param {Array<String>} fileUrls - Array of file URLs
-   * @returns {Promise<void>}
-   */
-  async deleteMultipleFiles(fileUrls) {
-    try {
-      console.log(`Attempting to delete ${fileUrls.length} files`);
-      
-      if (!Array.isArray(fileUrls) || fileUrls.length === 0) {
-        throw new AppError('No files provided for deletion', 400);
-      }
-      
-      // Delete files in parallel
-      const results = await Promise.allSettled(fileUrls.map(url => this.deleteFile(url)));
-      
-      // Check for failures
-      const failures = results.filter(r => r.status === 'rejected');
-      
-      if (failures.length > 0) {
-        console.warn(`⚠️ ${failures.length} of ${fileUrls.length} files failed to delete`);
-        
-        if (failures.length === fileUrls.length) {
-          throw new AppError('All file deletions failed', 500);
-        }
-      } else {
-        console.log(`✅ All ${fileUrls.length} files deleted successfully`);
-      }
-    } catch (error) {
-      // Pass through AppErrors
-      if (error instanceof AppError) {
-        throw error;
-      }
-      
-      const errorDetails = formatErrorDetails(error);
-      console.error("❌ Multiple files deletion error:", errorDetails);
-      
-      throw new AppError(
-        `Multiple files deletion failed: ${errorDetails.explanation || errorDetails.message}`,
-        errorDetails.statusCode
-      );
-    }
-  }
 }
 
-// Export both the FileUpload instance and multer upload middleware
-module.exports = {
-  fileUpload: new FileUpload(),
-  upload: upload
-};
+module.exports = new FileUpload();

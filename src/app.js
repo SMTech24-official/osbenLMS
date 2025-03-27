@@ -9,7 +9,14 @@ const { scheduleUserCleanup, scheduleSubscriptionChecks } = require('./app/utils
 const app = express();
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:5173','https://osben.vercel.app','https://osben-dashboard.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600,
+}));
 app.use(cookieParser());
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb' }));

@@ -4,6 +4,7 @@ const AppError = require('../../errors/AppError');
 const { generateToken } = require('../../utils/jwt.utils');
 const { addDays, addMonths, addYears } = require('date-fns');
 const generateOTP = require('../../utils/generateOTP');
+const Stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const createUser = async (data) => {
   try {
@@ -219,6 +220,59 @@ const updateUser = async (id, updateData) => {
 };
 
 const deleteUser = async (id) => {
+  // First get the user to check for subscription
+  const user = await prisma.user.findUnique({
+    where: { id },
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  // delete course enrollments
+  await prisma.enrollment.deleteMany({
+    where: {
+      userId: id,
+    },
+  });
+
+  // delete quiz attempts
+  await prisma.quizAttempt.deleteMany({
+    where: {
+      userId: id,
+    },
+  });
+
+  // delete certificates
+  await prisma.certificate.deleteMany({
+    where: {
+      userId: id,
+    },
+  });
+
+  // delete reviews
+  await prisma.review.deleteMany({
+    where: {
+      userId: id,
+    },
+  });
+
+  // Cancel Stripe subscription if it exists
+  if (user.subscriptionId) {
+    try {
+      await Stripe.subscriptions.cancel(user.subscriptionId);
+      // Update user's subscriptionId to null
+      await prisma.user.update({
+        where: { id },
+        data: { subscriptionId: null },
+      });
+    } catch (error) {
+      // Log the error but continue with user deletion
+      console.error('Error canceling Stripe subscription:', error.message);
+    }
+  }
+
+  // Finally delete the user
   return await prisma.user.delete({
     where: { id },
   });

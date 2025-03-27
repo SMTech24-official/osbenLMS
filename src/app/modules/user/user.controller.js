@@ -2,6 +2,8 @@ const catchAsync = require('../../utils/catchAsync');
 const sendResponse = require('../../utils/sendResponse');
 
 
+
+
 const userService = require('./user.service');
 
 const createUser = catchAsync(async (req, res) => {
@@ -74,11 +76,44 @@ const updateUser = catchAsync(async (req, res) => {
 
 const deleteUser = catchAsync(async (req, res) => {
   const { id } = req.params;
+  // delete user
   const result = await userService.deleteUser(id);
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: 'User deleted successfully',
+    data: result,
+  });
+});
+
+const forgotPassword = catchAsync(async (req, res) => {
+  const result = await userService.forgotPassword(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Password reset email sent successfully',
+    data: result,
+  });
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  const { email, newPassword, resetToken } = req.body;
+  const result = await userService.resetPassword(email, newPassword, resetToken);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Password reset successfully',
+    data: result,
+  });
+});
+
+const changePassword = catchAsync(async (req, res) => {
+  const { id } = req.user;
+  const result = await userService.changePassword(id, req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Password changed successfully',
     data: result,
   });
 });
@@ -90,4 +125,7 @@ module.exports = {
   deleteUser,
   getUser,
   getAllUsers,
+  forgotPassword,
+  resetPassword,
+  changePassword,
 };

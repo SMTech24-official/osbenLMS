@@ -1,5 +1,6 @@
-const prisma = require('../../utils/prisma');
-const { AppError } = require('../../errors/AppError');
+const { PrismaClient } = require('@prisma/client');
+const  AppError  = require('../../errors/AppError');
+const prisma = new PrismaClient();
 
 const enrollInCourse = async (userId, courseId) => {
   // First check if user has valid access
@@ -31,7 +32,9 @@ const enrollInCourse = async (userId, courseId) => {
 
   // Check if course exists
   const course = await prisma.course.findUnique({
-    where: { id: courseId },
+    where: { 
+      id: courseId
+    },
     select: {
       id: true,
       name: true,

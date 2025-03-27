@@ -121,9 +121,9 @@ const loginUser = async ({ email, password }) => {
   }
 
   // Check if access period has expired
-  if (new Date() > user.accessEndDate) {
-    throw new AppError('Your access period has expired', 403);
-  }
+  // if (new Date() > user.accessEndDate) {
+  //   throw new AppError('Your access period has expired', 403);
+  // }
 
   // Update last login date
   await prisma.user.update({

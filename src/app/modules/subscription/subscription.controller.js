@@ -3,6 +3,7 @@ const sendResponse  = require('../../utils/sendResponse');
 const subscriptionService = require('./subscription.service');
 
 const createCustomer = catchAsync(async (req, res) => {
+  
   const customerId = await subscriptionService.createCustomer(req.user.id);
   
   sendResponse(res, {
@@ -61,10 +62,22 @@ const getSubscriptionStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getPriceIdsByProductId = catchAsync(async (req, res) => {
+  const { productId } = req.body;
+  const priceIds = await subscriptionService.getPriceIdsByProductId(productId);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Price IDs retrieved successfully',
+    data: { priceIds },
+  });
+});
+
 module.exports = {
   createCustomer,
   attachPaymentMethod,
   createSubscription,
   cancelSubscription,
   getSubscriptionStatus,
+  getPriceIdsByProductId,
 }; 

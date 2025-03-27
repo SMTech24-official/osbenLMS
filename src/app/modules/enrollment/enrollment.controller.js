@@ -1,10 +1,10 @@
 const catchAsync = require('../../utils/catchAsync');
-const { sendResponse } = require('../../utils/sendResponse');
+const sendResponse = require('../../utils/sendResponse');
 const enrollmentService = require('./enrollment.service');
 
 const enrollInCourse = catchAsync(async (req, res) => {
   const userId = req.user.id;
-  const { courseId } = req.body;
+  const { courseId } = req.params;
 
   const result = await enrollmentService.enrollInCourse(userId, courseId);
 

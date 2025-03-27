@@ -139,10 +139,30 @@ const checkSubscriptionStatus = async (userId) => {
   return subscription.status === 'active';
 };
 
+// get all priceid from stripe by product id
+const getPriceIdsByProductId = async (productId) => {
+  // if product id is not provided, throw an error
+  if (!productId) {
+    throw new AppError('Product ID is required', 400);
+  }
+  const prices = await stripe.prices.list({
+    product: productId,
+  });
+  return prices.data.map((price) => {
+    return {
+      id: price.id,
+      name: price.nickname,
+      price: price.unit_amount / 100,
+      currency: price.currency,
+      interval: price.recurring.interval,
+    };
+  });
+};  
 module.exports = {
   createCustomer,
   attachPaymentMethod,
   createSubscription,
   cancelSubscription,
   checkSubscriptionStatus,
+  getPriceIdsByProductId,
 }; 

@@ -287,7 +287,6 @@ const getUser = async (id) => {
       email: true,
       role: true,
       profileImage: true,
-      studentId: true,
       accessEndDate: true,
       lastLoginDate: true,
       createdAt: true,
@@ -324,7 +323,6 @@ const getAllUsers = async (
         OR: [
           { name: { contains: searchTerm, mode: 'insensitive' } },
           { email: { contains: searchTerm, mode: 'insensitive' } },
-          { studentId: { contains: searchTerm, mode: 'insensitive' } },
         ],
       }
     : {};
@@ -343,7 +341,6 @@ const getAllUsers = async (
       email: true,
       role: true,
       profileImage: true,
-      studentId: true,
       accessEndDate: true,
       lastLoginDate: true,
       createdAt: true,

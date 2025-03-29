@@ -10,6 +10,8 @@ const courseSubSubGroupRoutes = require('../modules/courseSubSubGroup/courseSubS
 const subscriptionRoutes = require('../modules/subscription/subscription.routes');
 const uploadRoutes = require('../modules/file/file.routes');
 const reviewRoutes = require('../modules/review/review.routes');
+const dashboardRoutes = require('../modules/dashboard/dashboard.routes');
+
 const modulesRoutes = [
     {
         path: '/users',
@@ -50,6 +52,10 @@ const modulesRoutes = [
     {
         path: '/reviews',
         route: reviewRoutes
+    },
+    {
+        path: '/dashboard',
+        route: dashboardRoutes
     }
 ];
 

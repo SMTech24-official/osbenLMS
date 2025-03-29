@@ -216,6 +216,7 @@ const getEnrollments = async (
           name: true,
           videoUrl: true,
           overview: true,
+          thumbnailUrl: true,
           subSubGroup: {
             include: {
               subGroup: {

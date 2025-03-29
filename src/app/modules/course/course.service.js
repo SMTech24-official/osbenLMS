@@ -34,6 +34,7 @@ const createCourse = async (data, providerId) => {
   const course = await prisma.course.create({
     data: {
       name: data.name,
+      thumbnailUrl: data.thumbnailUrl,
       overview: data.overview,
       duration: data.duration,
       learningPoints: data.learningPoints,

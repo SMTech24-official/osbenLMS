@@ -117,6 +117,7 @@ model CourseSubSubGroup {
 model Course {
   id              String            @id @default(auto()) @map("_id") @db.ObjectId
   name            String
+  thumbnailUrl    String?
   videoUrl        String?      
   videoUploaded   Boolean          @default(false)  
   resources       String[]     

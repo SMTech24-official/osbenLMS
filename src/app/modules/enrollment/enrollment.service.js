@@ -395,11 +395,49 @@ const getUserCertificates = async (userId, groupId, subGroupId, subSubGroupId) =
   return certificates;
 };
 
+// Check if a user is enrolled in a specific course
+const checkEnrollment = async (userId, courseId) => {
+  // Check if course exists
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, name: true }
+  });
+
+  if (!course) {
+    throw new AppError('Course not found', 404);
+  }
+
+  // Check if enrollment exists
+  const enrollment = await prisma.enrollment.findFirst({
+    where: {
+      userId,
+      courseId
+    },
+    select: {
+      id: true,
+      enrolledAt: true,
+      completed: true,
+      completedAt: true,
+      course: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  });
+
+  return {
+    isEnrolled: !!enrollment,
+    enrollmentDetails: enrollment || null
+  };
+};
+
 module.exports = {
   enrollInCourse,
   completeEnrollment,
   getEnrollments,
   getCourseEnrollments,
   getUserCertificates,
-}; 
-
+  checkEnrollment
+};

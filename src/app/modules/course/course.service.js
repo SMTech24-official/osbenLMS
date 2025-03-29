@@ -328,6 +328,7 @@ const getCourseById = async (id) => {
           id: true,
           name: true,
           email: true,
+          profileImage: true,
         },
       },
       subSubGroup: {

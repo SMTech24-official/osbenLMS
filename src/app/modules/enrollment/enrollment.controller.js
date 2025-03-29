@@ -94,10 +94,25 @@ const getMyCertificates = catchAsync(async (req, res) => {
   });
 });
 
+const checkEnrollment = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const { courseId } = req.params;
+
+  const result = await enrollmentService.checkEnrollment(userId, courseId);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Enrollment status retrieved successfully',
+    data: result
+  });
+});
+
 module.exports = {
   enrollInCourse,
   completeEnrollment,
   getMyEnrollments,
   getCourseEnrollments,
   getMyCertificates,
+  checkEnrollment
 }; 

@@ -9,6 +9,7 @@ router.use(auth('USER'));
 // Enrollment routes
 router.post('/courses/:courseId/enroll', enrollmentController.enrollInCourse);
 router.patch('/courses/:courseId/complete', enrollmentController.completeEnrollment);
+router.get('/check-enrollment/:courseId', enrollmentController.checkEnrollment);
 
 // Get enrollments with optional filtering
 router.get('/my-enrollments', enrollmentController.getMyEnrollments);
@@ -26,4 +27,4 @@ router.get(
   enrollmentController.getCourseEnrollments
 );
 
-module.exports = router; 
+module.exports = router;

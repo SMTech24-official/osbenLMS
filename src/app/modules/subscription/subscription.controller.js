@@ -73,6 +73,33 @@ const getPriceIdsByProductId = catchAsync(async (req, res) => {
   });
 });
 
+// Get all subscribers with status and subscription end date
+const getAllSubscribers = catchAsync(async (req, res) => {
+  const { page, limit, searchTerm } = req.query;
+  const result = await subscriptionService.getAllSubscribers(page, limit, searchTerm);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Subscribers retrieved successfully',
+    meta: result.meta,
+    data: result.data
+  });
+});
+
+// Get user subscription details for dashboard
+const getUserSubscriptionDetails = catchAsync(async (req, res) => {
+  const userId = req.user.id;
+  const result = await subscriptionService.getUserSubscriptionDetails(userId);
+  
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Subscription details retrieved successfully',
+    data: result
+  });
+});
+
 module.exports = {
   createCustomer,
   attachPaymentMethod,
@@ -80,4 +107,6 @@ module.exports = {
   cancelSubscription,
   getSubscriptionStatus,
   getPriceIdsByProductId,
-}; 
+  getAllSubscribers,
+  getUserSubscriptionDetails
+};

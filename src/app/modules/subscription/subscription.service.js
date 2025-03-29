@@ -157,7 +157,177 @@ const getPriceIdsByProductId = async (productId) => {
       interval: price.recurring.interval,
     };
   });
-};  
+};
+
+// Get all subscribers with status and subscription end date
+const getAllSubscribers = async (page = 1, limit = 10, searchTerm = '') => {
+  const skip = (Number(page) - 1) * Number(limit);
+  
+  // Search condition
+  const searchCondition = searchTerm
+    ? {
+        OR: [
+          { name: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      }
+    : {};
+  
+  // Only get users with subscription IDs
+  const whereCondition = {
+    subscriptionId: {
+      not: null
+    },
+    ...searchCondition
+  };
+
+  // Get subscribers with pagination
+  const [subscribers, total] = await Promise.all([
+    prisma.user.findMany({
+      where: whereCondition,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        subscriptionId: true,
+        accessEndDate: true,
+        lastLoginDate: true,
+        createdAt: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip,
+      take: Number(limit)
+    }),
+    prisma.user.count({
+      where: whereCondition
+    })
+  ]);
+
+  // Get subscription status from Stripe for each user
+  const subscribersWithStatus = await Promise.all(
+    subscribers.map(async (user) => {
+      let status = 'unknown';
+      let currentPeriodEnd = user.accessEndDate;
+      
+      try {
+        if (user.subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(user.subscriptionId);
+          status = subscription.status;
+          currentPeriodEnd = new Date(subscription.current_period_end * 1000);
+        }
+      } catch (error) {
+        console.error(`Error retrieving subscription for user ${user.id}:`, error);
+      }
+
+      return {
+        ...user,
+        subscriptionStatus: status,
+        subscriptionEndDate: currentPeriodEnd,
+        isActive: status === 'active' && new Date() < currentPeriodEnd
+      };
+    })
+  );
+
+  return {
+    data: subscribersWithStatus,
+    meta: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages: Math.ceil(total / Number(limit))
+    }
+  };
+};
+
+// Get detailed subscription info for a user
+const getUserSubscriptionDetails = async (userId) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      subscriptionId: true,
+      stripeCustomerId: true,
+      accessEndDate: true,
+      createdAt: true
+    }
+  });
+
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  // Default response if no subscription
+  let subscriptionDetails = {
+    hasSubscription: false,
+    status: 'none',
+    currentPeriodStart: null,
+    currentPeriodEnd: user.accessEndDate,
+    cancelAtPeriodEnd: false,
+    plan: null,
+    paymentMethod: null
+  };
+
+  // If user has a subscription, get details from Stripe
+  if (user.subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(user.subscriptionId, {
+        expand: ['default_payment_method', 'items.data.price.product']
+      });
+
+      // Get plan details
+      const plan = subscription.items.data[0]?.price;
+      const product = plan?.product;
+      
+      // Get payment method details
+      let paymentMethod = null;
+      if (subscription.default_payment_method) {
+        paymentMethod = {
+          id: subscription.default_payment_method.id,
+          brand: subscription.default_payment_method.card?.brand,
+          last4: subscription.default_payment_method.card?.last4,
+          expiryMonth: subscription.default_payment_method.card?.exp_month,
+          expiryYear: subscription.default_payment_method.card?.exp_year
+        };
+      }
+
+      subscriptionDetails = {
+        hasSubscription: true,
+        status: subscription.status,
+        currentPeriodStart: new Date(subscription.current_period_start * 1000),
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        plan: plan ? {
+          id: plan.id,
+          nickname: plan.nickname,
+          amount: plan.unit_amount / 100,
+          currency: plan.currency,
+          interval: plan.recurring?.interval,
+          productName: product?.name
+        } : null,
+        paymentMethod
+      };
+    } catch (error) {
+      console.error(`Error retrieving subscription details for user ${userId}:`, error);
+      throw new AppError('Error retrieving subscription details', 500);
+    }
+  }
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      accessEndDate: user.accessEndDate
+    },
+    subscription: subscriptionDetails
+  };
+};
+
 module.exports = {
   createCustomer,
   attachPaymentMethod,
@@ -165,4 +335,6 @@ module.exports = {
   cancelSubscription,
   checkSubscriptionStatus,
   getPriceIdsByProductId,
-}; 
+  getAllSubscribers,
+  getUserSubscriptionDetails
+};

@@ -395,10 +395,63 @@ const updateCourse = async (id, data) => {
 };
 
 const deleteCourse = async (id) => {
-  const course = await prisma.course.delete({
+  // First check if course exists
+  const courseExists = await prisma.course.findUnique({
     where: { id },
+    select: { id: true }
   });
-  return course;
+
+  if (!courseExists) {
+    throw new AppError('Course not found', 404);
+  }
+
+  // Use a transaction to delete all related records first
+  return await prisma.$transaction(async (tx) => {
+    // 1. Delete all reviews related to the course
+    await tx.review.deleteMany({
+      where: { courseId: id }
+    });
+
+    // 2. Delete all certificates related to the course
+    await tx.certificate.deleteMany({
+      where: { courseId: id }
+    });
+
+    // 3. Delete all enrollments related to the course
+    await tx.enrollment.deleteMany({
+      where: { courseId: id }
+    });
+
+    // 4. Delete quiz attempts if the course has a quiz
+    const quiz = await tx.quiz.findUnique({
+      where: { courseId: id },
+      select: { id: true }
+    });
+
+    if (quiz) {
+      // Delete quiz attempts
+      await tx.quizAttempt.deleteMany({
+        where: { quizId: quiz.id }
+      });
+
+      // Delete quiz questions
+      await tx.question.deleteMany({
+        where: { quizId: quiz.id }
+      });
+
+      // Delete the quiz itself
+      await tx.quiz.delete({
+        where: { id: quiz.id }
+      });
+    }
+
+    // 5. Finally delete the course
+    const deletedCourse = await tx.course.delete({
+      where: { id }
+    });
+
+    return deletedCourse;
+  });
 };
 
 module.exports = {
@@ -411,4 +464,4 @@ module.exports = {
   getCourseById,
   updateCourse,
   deleteCourse,
-}; 
+};

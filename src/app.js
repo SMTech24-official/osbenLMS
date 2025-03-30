@@ -10,7 +10,7 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173','https://osben.vercel.app','https://osben-dashboard.vercel.app','https://lms-dashboard-kappa.vercel.app','https://lms-frontend-tau-vert.vercel.app'],
+  origin: ['http://localhost:3000', 'http://localhost:5173','https://osben.vercel.app','https://osben-dashboard.vercel.app','https://osben88yahoocom-dashboard.vercel.app','https://lms-dashboard-kappa.vercel.app','https://lms-frontend-tau-vert.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,

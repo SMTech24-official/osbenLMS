@@ -10,7 +10,27 @@ const app = express();
 
 // Middlewares
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173','https://osben.vercel.app','https://osben-dashboard.vercel.app','https://osben88yahoocom-dashboard.vercel.app','https://lms-dashboard-kappa.vercel.app','https://lms-frontend-tau-vert.vercel.app'],
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://138.197.77.144:3000',
+    'http://138.197.77.144:8020',
+    'http://solidfoundationacademy.com',
+    'http://www.solidfoundationacademy.com',
+    'http://api.solidfoundationacademy.com',
+    'http://dashboard.solidfoundationacademy.com',
+    'http://dev.solidfoundationacademy.com',
+    'https://osben.vercel.app',
+    'https://osben-dashboard.vercel.app',
+    'https://osben88yahoocom-dashboard.vercel.app',
+    'https://solidfoundationacademy.com',
+    'https://www.solidfoundationacademy.com',
+    'https://lms-dashboard-kappa.vercel.app',
+    'https://lms-frontend-tau-vert.vercel.app',
+    'https://api.solidfoundationacademy.com',
+    'https://dashboard.solidfoundationacademy.com',
+    'https://dev.solidfoundationacademy.com',
+  ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
